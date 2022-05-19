@@ -1,0 +1,3 @@
+name: guide-to-pulumi--frontend-app
+runtime: nodejs
+description: Frontend application hosted on infra in common infra

@@ -1,0 +1,6 @@
+config:
+  azure-native:location: westeurope
+  azure-native:subscriptionId: 169d4909-3a29-4be6-b84a-43f01a360f3f
+  azure-native:tenantId: 80714421-3ab2-450b-8ae3-0d780029016f
+  guide-to-pulumi--frontend-app:common-infra-stack-name: dev
+  guide-to-pulumi--frontend-app:namespace-suffix: dev
