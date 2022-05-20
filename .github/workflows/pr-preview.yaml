@@ -25,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.action != 'closed' }}
 
+    permissions:
+      pull-requests: write
+      contents: read
+
     steps:
       - name: Create comment
         uses: peter-evans/create-or-update-comment@v1
@@ -128,6 +132,10 @@ jobs:
 
     runs-on: ubuntu-latest
     if: ${{ github.event.action == 'closed' }}
+
+    permissions:
+      pull-requests: write
+      contents: read
 
     steps:
       - name: Create comment
