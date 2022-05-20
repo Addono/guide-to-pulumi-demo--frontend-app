@@ -1,0 +1,189 @@
+name: PR Preview
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - closed
+
+env:
+  STACK_NAME: pr-${{ github.event.number }}-dev
+  BASE_STACK_NAME: dev
+  PULUMI_ORG: AdriaanKnapenEficode
+  PULUMI_WORKDIR: ./pulumi/
+
+concurrency: pr-${{ github.event.number }}
+
+jobs:
+  preview:
+    name: Create or update
+
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action != 'closed' }}
+
+    steps:
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v1
+        id: create-comment
+        with:
+          issue-number: ${{ github.event.number }}
+          body: |
+            **Creating preview environment for ${{ github.sha }}**
+            You can view the detailed status of this run [here](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). 
+
+            ⚙️  Initializing  (1/3)
+
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3.1.1
+        with:
+          node-version-file: ".nvmrc"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        working-directory: ${{ env.PULUMI_WORKDIR }}
+
+      - name: Install Pulumi CLI
+        uses: pulumi/setup-pulumi@v2
+
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_DEV_APP_CREDENTIALS }}
+
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          comment-id: ${{ steps.create-comment.outputs.comment-id }}
+          body: |
+            🏎  Deploying  (2/3)
+
+      - name: Configure preview stack
+        run: |
+          # Create a new Pulumi stack in case it doesn't yet exist
+          pulumi stack init $PULUMI_ORG/$STACK_NAME || echo "Failed creating Pulumi stack, presumably it already exists"
+
+          # Check if the Stack config file is not checked into source control, if so, inheric config from a copy of the base stack.
+          STACK_FILE="Pulumi.$STACK_NAME.yaml"
+          if [[ ! -f "$STACK_FILE" ]]; then
+            echo "Didn't find stack config in '$STACK_FILE', inheriting base config from stack '$BASE_STACK_NAME'."
+
+            # Copy stack configuration from base stack
+            pulumi config cp --stack $PULUMI_ORG/$BASE_STACK_NAME --dest $PULUMI_ORG/$STACK_NAME;
+          fi
+
+          # Update the stack config for an ephemeral stack and prevent clashes
+          pulumi config set namespaceSuffix $STACK_NAME --stack $PULUMI_ORG/$STACK_NAME
+        working-directory: ${{ env.PULUMI_WORKDIR }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          AZURE_KEYVAULT_AUTH_VIA_CLI: "true"
+
+      - name: Roll out deployment
+        uses: pulumi/actions@v3
+        id: pulumi
+        with:
+          command: up
+          stack-name: ${{ env.PULUMI_ORG }}/${{ env.STACK_NAME }}
+          work-dir: ${{ env.PULUMI_WORKDIR }}
+        env:
+          # Used to label the docker image with the PR number
+          PR_NUMBER: ${{ github.event.number }}
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          # Required by Pulumi to access Azure resources
+          ARM_CLIENT_ID: ${{ fromJSON(secrets.AZURE_DEV_APP_CREDENTIALS).clientId }}
+          ARM_CLIENT_SECRET: ${{ fromJSON(secrets.AZURE_DEV_APP_CREDENTIALS).clientSecret }}
+          AZURE_KEYVAULT_AUTH_VIA_CLI: "true"
+
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          comment-id: ${{ steps.create-comment.outputs.comment-id }}
+          body: |
+            🚀  Preview environment live at http://${{ steps.pulumi.outputs.domainName }}  (3/3)
+
+      - name: Report error
+        uses: peter-evans/create-or-update-comment@v1
+        if: ${{ failure() }}
+        with:
+          comment-id: ${{ steps.create-comment.outputs.comment-id }}
+          body: |
+            💥  Something went wrong while creating the preview environment
+
+      - name: Report run cancelled
+        uses: peter-evans/create-or-update-comment@v1
+        if: ${{ cancelled() }}
+        with:
+          comment-id: ${{ steps.create-comment.outputs.comment-id }}
+          body: |
+            🚦  Preview creation cancelled
+
+  cleanup:
+    name: Cleanup
+
+    runs-on: ubuntu-latest
+    if: ${{ github.event.action == 'closed' }}
+
+    steps:
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v1
+        id: create-comment
+        with:
+          issue-number: ${{ github.event.number }}
+          body: |
+            **Cleaning up preview environment**
+            You can view the detailed status of this run [here](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}). 
+
+            ⚙️ Initializing  (1/3)
+
+      - uses: actions/checkout@v3
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3.1.1
+        with:
+          node-version-file: ".nvmrc"
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+        working-directory: ${{ env.PULUMI_WORKDIR }}
+
+      - name: Install Pulumi CLI
+        uses: pulumi/setup-pulumi@v2
+
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_DEV_APP_CREDENTIALS }}
+
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          comment-id: ${{ steps.create-comment.outputs.comment-id }}
+          body: |
+            🚧 Destroying  (2/3)
+
+      - name: Destroy the stack
+        uses: pulumi/actions@v3
+        id: pulumi
+        with:
+          command: destroy
+          stack-name: ${{ env.PULUMI_ORG }}/${{ env.STACK_NAME }}
+          work-dir: ${{ env.PULUMI_WORKDIR }}
+        env:
+          PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+          # Required by Pulumi to access Azure resources
+          ARM_CLIENT_ID: ${{ fromJSON(secrets.AZURE_DEV_APP_CREDENTIALS).clientId }}
+          ARM_CLIENT_SECRET: ${{ fromJSON(secrets.AZURE_DEV_APP_CREDENTIALS).clientSecret }}
+          AZURE_KEYVAULT_AUTH_VIA_CLI: "true"
+
+      - name: Create comment
+        uses: peter-evans/create-or-update-comment@v1
+        with:
+          comment-id: ${{ steps.create-comment.outputs.comment-id }}
+          body: |
+            💣 Preview environment destroyed  (3/3)
