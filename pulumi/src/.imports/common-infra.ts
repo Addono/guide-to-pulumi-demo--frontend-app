@@ -19,8 +19,6 @@ export const kubernetesClusterResourceGroup = azure.resources.getResourceGroupOu
   resourceGroupName: kubernetesClusterOutput.apply((output) => output.resourceGroupName),
 })
 
-export const kubernetesDomainName = kubernetesClusterOutput.apply(output => output.domainName)
-
 /**
  * Import the ACR container registry
  */
@@ -32,4 +30,16 @@ export const containerRegistry = azure.containerregistry.getRegistryOutput({
 
 export const containerRegistryResourceGroup = azure.resources.getResourceGroupOutput({
   resourceGroupName: AcrOutput.apply((output) => output.resourceGroupName),
+})
+
+/**
+ * DNS
+ */
+const DnsOutput = stack.getOutput("dnsZone")
+export const dnsResourceGroup = azure.resources.getResourceGroupOutput({
+  resourceGroupName: DnsOutput.apply((o) => o.resourceGroupName),
+})
+export const dnsZone = azure.network.getZoneOutput({
+  resourceGroupName: dnsResourceGroup.name,
+  zoneName: DnsOutput.apply((output) => output.zoneName),
 })

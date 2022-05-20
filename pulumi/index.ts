@@ -1,1 +1,1 @@
-export { namespaceName, fullImageName, hostname } from "./src/kubernetes"
+export { namespaceName, fullImageName, domainName } from "./src/kubernetes"

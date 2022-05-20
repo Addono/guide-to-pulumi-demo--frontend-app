@@ -10,7 +10,4 @@ export { fullImageName } from "./deployment"
 import { namespace } from "./namespace"
 export const namespaceName = namespace.metadata.name
 
-import { service } from "./networking"
-export const hostname = service.status.loadBalancer.ingress
-
-import "./networking"
+export  { domainName } from "./networking"
