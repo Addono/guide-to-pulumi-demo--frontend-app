@@ -83,7 +83,7 @@ jobs:
           fi
 
           # Update the stack config for an ephemeral stack and prevent clashes
-          pulumi config set namespaceSuffix $STACK_NAME --stack $PULUMI_ORG/$STACK_NAME
+          pulumi config set namespace-suffix $STACK_NAME --stack $PULUMI_ORG/$STACK_NAME
         working-directory: ${{ env.PULUMI_WORKDIR }}
         env:
           PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
