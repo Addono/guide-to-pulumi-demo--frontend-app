@@ -1,6 +1,6 @@
 // Explicitely allow running code before importing
 /* eslint-disable import/order */
-import { registerK8sProvider } from "../transformations/k8sProvider"
+import { registerK8sProvider } from "../.pulumi/k8sProvider"
 import { clusterProvider } from "./clusterProvider"
 
 registerK8sProvider(clusterProvider)
