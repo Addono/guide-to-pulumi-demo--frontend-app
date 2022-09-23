@@ -44,9 +44,13 @@ export const fullImageName = containerRegistry.name.apply(
 const image = new docker.Image("app-docker-image", {
   build: {
     context: "../app/",
+    env: {
+      "DOCKER_DEFAULT_PLATFORM": "linux/amd64"
+    }
   },
   imageName: fullImageName,
   registry: registryInfo,
+
 })
 
 export const baseImageName = image.baseImageName
