@@ -50,7 +50,6 @@ const image = new docker.Image("app-docker-image", {
   },
   imageName: fullImageName,
   registry: registryInfo,
-
 })
 
 export const baseImageName = image.baseImageName
